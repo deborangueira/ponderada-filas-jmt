@@ -1,8 +1,6 @@
-# Rede de filas: o caminho de uma requisição no e-Cidade Laboratório
+# Simulação de uma rede de filas
 
-Ponderada · Módulo 8 · Inteli — Débora Nogueira
-
-**Vídeo de apresentação (até 5 min):** [link do Google Drive](COLE-AQUI-O-LINK-DO-DRIVE)
+**Vídeo:** [link do Google Drive](https://drive.google.com/drive/folders/1vfLrPClQ_ZsWJexxQpyldmtuT2qIxIT3?usp=drive_link)
 
 ## Enunciado
 
