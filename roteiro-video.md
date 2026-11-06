@@ -50,17 +50,21 @@ E tem um detalhe curioso: o banco foi a única medida que não chegou na precis�
 
 ## 5. What-if (3:20–4:25)
 
-[Abrir o What-if e mostrar a configuração: Arrival rates, de 20 a 40, 10 passos]
+[Abrir o What-if e mostrar a configuração: Arrival rates, de 5 a 23, 10 passos]
 
-Na análise What-if, repeti a simulação dez vezes, aumentando a taxa de chegada de 20 até 40 requisições por segundo. A teoria dizia que o banco satura em 25.
+Na análise What-if, repeti a simulação dez vezes, aumentando a taxa de chegada de 5 até 23 requisições por segundo, para ver o caminho do sistema até o limite, que pela teoria é de 25.
+
+[Resultados → Utilization → Banco de dados]
+
+A utilização do banco sobe em linha reta, de 20% até uns 91%, porque cada requisição sempre gasta o mesmo tempo nele.
 
 [Resultados → System Response Time]
 
-E é isso que aparece. Indo de 20 para 22 requisições por segundo, o tempo de resposta sobe de 0,42 para 0,63 segundo. Em 24,4, ele já está em 2,5 segundos, quatro vezes mais, com um aumento de carga parecido. Esse é o joelho da curva: perto do limite, cada pouquinho de carga custa muito tempo. Passando de 25, a fila do banco cresce sem parar, e esses números enormes só mostram até onde a fila chegou antes da simulação acabar.
+Mas o tempo de resposta não cresce do mesmo jeito. De 5 para 13 requisições por segundo, a carga mais que dobra e o tempo sobe só 36%. Já de 21 para 23, com só 10% a mais de carga, ele vai de 0,5 para 0,8 segundo. Esse é o joelho da curva: quando o servidor chega perto de 100% de ocupação, cada pouquinho de carga custa muito tempo de espera.
 
-[Number of Customers → Worker PDF e Servidor de aplicação]
+[Mostrar rapidamente o gráfico da rodada de 20 a 40, se tiver o print aberto]
 
-Também dá para ver o efeito em cascata: com o banco travado, o worker de PDF estabiliza, porque o banco só deixa passar uma quantidade fixa, e o servidor de aplicação, que recebe os retornos do banco, acaba saturando também, por volta de 33 requisições por segundo.
+Eu também rodei de 20 a 40 para ver o que acontece depois do limite: passando de 25, a fila do banco cresce sem parar, e com o banco travado o servidor de aplicação acaba saturando também, por volta de 33 requisições por segundo.
 
 ## 6. Conclusão (4:25–4:45)
 

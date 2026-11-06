@@ -32,7 +32,7 @@ O roteamento é determinístico até o banco de dados. Na saída do banco, 40% d
 
 O modelo foi construído no JSIMgraph, ferramenta de simulação por eventos discretos do JMT 1.5.0, e está no arquivo [`rede-filas-ecidade.jsimg`](rede-filas-ecidade.jsimg). A simulação usa a semente 23000 e para cada medida quando atinge 99% de confiança com erro relativo máximo de 3%, ou quando chega a 1 milhão de amostras. Foram coletadas, por estação, a utilização, o número médio de requisições, o tempo de resposta e o throughput, além das medidas do sistema inteiro.
 
-A análise foi feita em duas etapas. A primeira simula o cenário base, com 20 req/s, e compara cada resultado com o valor previsto pela teoria de filas. A segunda usa a análise What-if do JMT para repetir a simulação 10 vezes, variando a taxa de chegada de 20 a 40 req/s, e observar como o sistema se comporta à medida que se aproxima da saturação.
+A análise foi feita em duas etapas. A primeira simula o cenário base, com 20 req/s, e compara cada resultado com o valor previsto pela teoria de filas. A segunda usa a análise What-if do JMT para repetir a simulação 10 vezes, variando a taxa de chegada de 5 a 23 req/s, e observar como o sistema se comporta à medida que se aproxima da saturação. Uma rodada complementar, de 20 a 40 req/s, mostra o comportamento depois do limite.
 
 ## Resultados
 
@@ -45,7 +45,7 @@ A simulação reproduziu os valores teóricos, sempre dentro do intervalo de con
 | Gateway | 40,0% | 40,1% | 0,67 | 0,66 |
 | Servidor de aplicação | 66,7% | 66,5% | 2,40 | 2,38 |
 | **Banco de dados** | **80,0%** | **81,4%** | **4,00** | **4,04** |
-| Worker PDF | 60,0% | — | 1,50 | 1,48 |
+| Worker PDF | 60,0% | 60,0% | 1,50 | 1,48 |
 
 O tempo médio de resposta do sistema foi de **0,424 s**, com intervalo de confiança entre 0,415 s e 0,434 s, contra 0,428 s previstos pela teoria.
 
@@ -61,28 +61,45 @@ Depois da simulação, o próprio JSIMgraph desenha esses resultados no modelo: 
 
 A medida de número de requisições no banco não atingiu a precisão pedida antes do limite de amostras, embora a média (4,04) esteja próxima da teórica (4,00). Isso acontece justamente por ele ser o gargalo: uma fila com o servidor ocupado 80% do tempo oscila muito, entre vazia e longa, e exige mais observações para que a média se estabilize.
 
-### Análise What-if (20 a 40 req/s)
+### Análise What-if (5 a 23 req/s)
 
-A teoria prevê que o banco satura quando a taxa de chegada atinge 1 / (1,67 × 0,024 s) = 25 req/s. A análise What-if confirma esse limite e mostra que o tempo de resposta cresce de forma não linear à medida que o sistema se aproxima dele.
+A teoria prevê que o banco satura quando a taxa de chegada atinge 1 / (1,67 × 0,024 s) = 25 req/s. Para observar o caminho até esse limite, a análise What-if repetiu a simulação 10 vezes, com a taxa de chegada indo de 5 a 23 req/s em passos de 2, ou seja, do sistema folgado até o banco ocupado 92% do tempo.
 
-| Chegadas (req/s) | Utilização do banco | Tempo de resposta (JMT) | Tempo de resposta (teoria) |
+| Chegadas (req/s) | Utilização do banco (JMT) | Tempo de resposta (JMT) | Tempo de resposta (teoria) |
 |---|---|---|---|
-| 20,0 | 80% | 0,42 s | 0,43 s |
-| 22,2 | 89% | 0,63 s | 0,63 s |
-| 24,4 | 98% | 2,54 s | 2,15 s |
-| 26,7 ou mais | acima de 100% | instável | infinito |
+| 5 | 20,1% | 0,177 s | 0,176 s |
+| 9 | 35,2% | 0,202 s | 0,201 s |
+| 13 | 51,2% | 0,240 s | 0,242 s |
+| 17 | 67,5% | 0,312 s | 0,315 s |
+| 19 | 76,1% | 0,387 s | 0,380 s |
+| 21 | 84,9% | 0,495 s | 0,496 s |
+| 23 | ≈ 91% | ≈ 0,80 s | 0,796 s |
+
+Os valores de 23 req/s foram lidos nos gráficos do JMT.
 
 ![Tempo de resposta no What-if](assets/whatif-tempo-resposta.png)
 
-Entre 20 e 22,2 req/s, um aumento de 11% na carga eleva o tempo de resposta em 50%. Entre 22,2 e 24,4 req/s, um aumento semelhante o multiplica por quatro. A partir de 26,7 req/s, chegam ao banco mais requisições do que ele consegue processar, a fila cresce sem limite e os valores exibidos pelo JMT (acima de mil segundos) refletem apenas o tamanho que a fila atingiu até a simulação parar, e não uma média de regime.
+A utilização do banco cresce em linha reta com a carga, já que cada requisição consome sempre o mesmo tempo médio de serviço. O tempo de resposta, por outro lado, cresce de forma não linear. Entre 5 e 13 req/s, a carga mais que dobra e o tempo de resposta sobe apenas 36%, porque as filas quase não se formam. Entre 21 e 23 req/s, um aumento de 10% na carga faz o tempo saltar de 0,50 s para cerca de 0,80 s. Esse "joelho" da curva acontece porque, numa fila, o tempo de espera é proporcional a 1 / (1 − ρ): quando a utilização se aproxima de 100%, cada pequeno acréscimo de carga tem um efeito cada vez maior.
+
+![Utilização do banco de dados no What-if](assets/whatif-utilizacao-banco.png)
+
+O número de requisições no banco conta a mesma história. Ele fica abaixo de 1,6 até 15 req/s e passa de 5 em 21 req/s. A partir de 17 req/s, as medidas do banco deixam de atingir a precisão pedida antes do limite de amostras, o mesmo comportamento observado no cenário base, já que filas mais ocupadas oscilam mais.
 
 ![Requisições no banco de dados no What-if](assets/whatif-banco-de-dados.png)
 
-O What-if também mostra o efeito em cascata da saturação. Com o banco travado na sua capacidade máxima de 41,7 consultas por segundo, o Worker PDF recebe um fluxo limitado e estabiliza em cerca de 3 requisições, enquanto o servidor de aplicação passa a acumular, além das chegadas externas, os retornos do banco, até também saturar por volta de 33 req/s. O gateway, por sua vez, segue estável em toda a faixa.
+### Além do limite (20 a 40 req/s)
+
+Uma segunda rodada de What-if, de 20 a 40 req/s, mostra o que acontece depois do limite. Até 24,4 req/s o tempo de resposta continua finito (2,54 s, para 2,15 s previstos), mas a partir de 26,7 req/s chegam ao banco mais requisições do que ele consegue processar e a fila cresce sem limite. Os valores exibidos pelo JMT nessa faixa (acima de mil segundos) refletem apenas o tamanho que a fila atingiu até a simulação parar, e não uma média de regime.
+
+![Tempo de resposta acima da saturação](assets/saturacao-tempo-resposta.png)
+
+Essa rodada também mostra o efeito em cascata da saturação. Com o banco travado na sua capacidade máxima de 41,7 consultas por segundo, o Worker PDF recebe um fluxo limitado e estabiliza em cerca de 3 requisições, enquanto o servidor de aplicação passa a acumular, além das chegadas externas, os retornos do banco, até também saturar por volta de 33 req/s. O gateway segue estável em toda a faixa.
+
+![Requisições no banco de dados acima da saturação](assets/saturacao-banco-de-dados.png)
 
 ## Conclusão
 
-Com os parâmetros adotados, a arquitetura atende 20 req/s com tempo médio de resposta de 0,42 s, mas opera perto do seu limite: o banco de dados define o teto do sistema em 25 req/s, e acima de 22 req/s o tempo de resposta passa a crescer rapidamente. Para absorver mais carga, a intervenção precisa estar no banco, seja reduzindo o tempo de cada consulta, seja diminuindo o número de idas ao banco por requisição (o ciclo de retorno de 40%), por exemplo com cache ou réplicas de leitura. Ampliar o gateway ou o servidor de aplicação não altera esse limite.
+Com os parâmetros adotados, a arquitetura atende 20 req/s com tempo médio de resposta de 0,42 s, mas opera perto do seu limite: o banco de dados define o teto do sistema em 25 req/s, e acima de 20 req/s o tempo de resposta passa a crescer rapidamente, chegando a quase o dobro em 23 req/s. Para absorver mais carga, a intervenção precisa estar no banco, seja reduzindo o tempo de cada consulta, seja diminuindo o número de idas ao banco por requisição (o ciclo de retorno de 40%), por exemplo com cache ou réplicas de leitura. Ampliar o gateway ou o servidor de aplicação não altera esse limite.
 
 ## Limitações
 
@@ -92,7 +109,7 @@ O modelo assume chegadas de Poisson e tempos de serviço exponenciais, uma únic
 
 1. Instale o Java 21 ou mais recente (por exemplo, o Eclipse Temurin) e baixe o `JMT-singlejar-1.5.0.jar` em [jmt.sourceforge.net](https://jmt.sourceforge.net).
 2. Abra o JMT com `java -jar JMT-singlejar-1.5.0.jar` e escolha **JSIMgraph**.
-3. Em **File → Open**, abra `rede-filas-ecidade.jsimg` e clique no **▶**. O arquivo já vem com o What-if ativado (Arrival rates, de 20 a 40 req/s, 10 passos).
+3. Em **File → Open**, abra `rede-filas-ecidade.jsimg` e clique no **▶**. O arquivo já vem com o What-if ativado (Arrival rates, de 5 a 23 req/s, 10 passos). Para reproduzir a rodada complementar, altere o What-if para From 20 e To 40.
 4. Para rodar só o cenário base, clique em **WHAT if**, desmarque **Enable What-If analysis** e clique no **▶** de novo.
 
 ## Estrutura
