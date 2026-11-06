@@ -12,7 +12,7 @@ Esta atividade modela, como uma rede de filas aberta, o caminho que uma requisi�
 
 A requisição entra por um gateway, é processada por um dos dois servidores de aplicação e consulta o banco de dados. Como uma mesma operação costuma exigir mais de uma consulta, parte das requisições volta do banco para o servidor de aplicação, formando um ciclo de retorno. Quando o resultado de um exame é liberado, a requisição segue ainda para um worker assíncrono que gera o PDF do laudo.
 
-![Modelo da rede de filas no JSIMgraph](assets/modelo.png)
+![Modelo da rede de filas no JSIMgraph](assets/01-modelo.png)
 
 ## O modelo
 
@@ -47,17 +47,17 @@ A simulação reproduziu os valores teóricos, sempre dentro do intervalo de con
 | **Banco de dados** | **80,0%** | **81,4%** | **4,00** | **4,04** |
 | Worker PDF | 60,0% | 60,0% | 1,50 | 1,48 |
 
-O tempo médio de resposta do sistema foi de **0,424 s**, com intervalo de confiança entre 0,415 s e 0,434 s, contra 0,428 s previstos pela teoria.
+O banco de dados é o gargalo do sistema: é a estação mais ocupada da rede. O servidor de aplicação recebe o mesmo volume de requisições que o banco, contando os retornos, mas fica menos ocupado porque divide o trabalho entre dois servidores.
 
-![Tempo de resposta do sistema no cenário base](assets/tempo-resposta-base.png)
-
-![Utilização no cenário base](assets/utilizacao-base.png)
-
-O banco de dados é o gargalo do sistema. É a estação mais ocupada, e também a que mais pesa no tempo de resposta: somando as passagens de uma requisição por cada estação, o banco responde por cerca de 0,20 s dos 0,43 s, quase metade do total, seguido pelo servidor de aplicação (0,12 s), pelo Worker PDF (0,075 s) e pelo gateway (0,033 s). O servidor de aplicação recebe o mesmo volume que o banco, mas fica menos ocupado porque divide o trabalho entre dois servidores.
+![Utilização no cenário base](assets/02-utilizacao-base.png)
 
 Depois da simulação, o próprio JSIMgraph desenha esses resultados no modelo: o círculo de cada estação vira um gráfico de pizza da utilização e a barra da fila mostra quantas requisições esperam ali.
 
-![Modelo após a simulação](assets/modelo-pos-simulacao.png)
+![Modelo após a simulação](assets/03-modelo-pos-simulacao.png)
+
+O tempo médio de resposta do sistema foi de **0,424 s**, com intervalo de confiança entre 0,415 s e 0,434 s, contra 0,428 s previstos pela teoria. O banco também é a estação que mais pesa nesse tempo: somando as passagens de uma requisição por cada estação, ele responde por cerca de 0,20 s dos 0,43 s, quase metade do total, seguido pelo servidor de aplicação (0,12 s), pelo Worker PDF (0,075 s) e pelo gateway (0,033 s).
+
+![Tempo de resposta do sistema no cenário base](assets/04-tempo-resposta-base.png)
 
 A medida de número de requisições no banco não atingiu a precisão pedida antes do limite de amostras, embora a média (4,04) esteja próxima da teórica (4,00). Isso acontece justamente por ele ser o gargalo: uma fila com o servidor ocupado 80% do tempo oscila muito, entre vazia e longa, e exige mais observações para que a média se estabilize.
 
@@ -77,25 +77,25 @@ A teoria prevê que o banco satura quando a taxa de chegada atinge 1 / (1,67 × 
 
 Os valores de 23 req/s foram lidos nos gráficos do JMT.
 
-![Tempo de resposta no What-if](assets/whatif-tempo-resposta.png)
+![Utilização do banco de dados no What-if](assets/05-whatif-utilizacao-banco.png)
+
+![Tempo de resposta no What-if](assets/06-whatif-tempo-resposta.png)
 
 A utilização do banco cresce em linha reta com a carga, já que cada requisição consome sempre o mesmo tempo médio de serviço. O tempo de resposta, por outro lado, cresce de forma não linear. Entre 5 e 13 req/s, a carga mais que dobra e o tempo de resposta sobe apenas 36%, porque as filas quase não se formam. Entre 21 e 23 req/s, um aumento de 10% na carga faz o tempo saltar de 0,50 s para cerca de 0,80 s. Esse "joelho" da curva acontece porque, numa fila, o tempo de espera é proporcional a 1 / (1 − ρ): quando a utilização se aproxima de 100%, cada pequeno acréscimo de carga tem um efeito cada vez maior.
 
-![Utilização do banco de dados no What-if](assets/whatif-utilizacao-banco.png)
-
 O número de requisições no banco conta a mesma história. Ele fica abaixo de 1,6 até 15 req/s e passa de 5 em 21 req/s. A partir de 17 req/s, as medidas do banco deixam de atingir a precisão pedida antes do limite de amostras, o mesmo comportamento observado no cenário base, já que filas mais ocupadas oscilam mais.
 
-![Requisições no banco de dados no What-if](assets/whatif-banco-de-dados.png)
+![Requisições no banco de dados no What-if](assets/07-whatif-banco-de-dados.png)
 
 ### Além do limite (20 a 40 req/s)
 
 Uma segunda rodada de What-if, de 20 a 40 req/s, mostra o que acontece depois do limite. Até 24,4 req/s o tempo de resposta continua finito (2,54 s, para 2,15 s previstos), mas a partir de 26,7 req/s chegam ao banco mais requisições do que ele consegue processar e a fila cresce sem limite. Os valores exibidos pelo JMT nessa faixa (acima de mil segundos) refletem apenas o tamanho que a fila atingiu até a simulação parar, e não uma média de regime.
 
-![Tempo de resposta acima da saturação](assets/saturacao-tempo-resposta.png)
+![Tempo de resposta acima da saturação](assets/08-saturacao-tempo-resposta.png)
 
 Essa rodada também mostra o efeito em cascata da saturação. Com o banco travado na sua capacidade máxima de 41,7 consultas por segundo, o Worker PDF recebe um fluxo limitado e estabiliza em cerca de 3 requisições, enquanto o servidor de aplicação passa a acumular, além das chegadas externas, os retornos do banco, até também saturar por volta de 33 req/s. O gateway segue estável em toda a faixa.
 
-![Requisições no banco de dados acima da saturação](assets/saturacao-banco-de-dados.png)
+![Requisições no banco de dados acima da saturação](assets/09-saturacao-banco-de-dados.png)
 
 ## Conclusão
 
@@ -117,6 +117,5 @@ O modelo assume chegadas de Poisson e tempos de serviço exponenciais, uma únic
 ```
 rede-filas-ecidade.jsimg          modelo da rede de filas para o JSIMgraph (JMT 1.5.0)
 rede-filas-ecidade.legacy.jsimg   cópia gerada pelo JMT para versões até a 1.4.0
-roteiro-video.md                  roteiro do vídeo de até 5 minutos
-assets/                           capturas do modelo e dos resultados no JMT
+assets/                           capturas do JMT, numeradas na ordem em que aparecem no vídeo
 ```
